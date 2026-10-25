@@ -649,6 +649,8 @@ $router->post(
 // RECEPCIÓN Y DISTRIBUCIÓN DE MATERIALES
 // ============================================================
 $router->get('/materiales/recepcion-distribucion', [MaterialesRecepcionDistribucionController::class, 'index']);
+$router->get('/materiales/recepcion-distribucion/recepcion', [MaterialesRecepcionDistribucionController::class, 'recepcion']);
+$router->get('/materiales/recepcion-distribucion/distribucion', [MaterialesRecepcionDistribucionController::class, 'distribucion']);
 $router->post('/materiales/recepcion-distribucion/recibir', [MaterialesRecepcionDistribucionController::class, 'recibir']);
 $router->post('/materiales/recepcion-distribucion/distribuir', [MaterialesRecepcionDistribucionController::class, 'distribuir']);
 
