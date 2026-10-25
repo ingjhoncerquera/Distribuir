@@ -171,6 +171,10 @@ require_once ROOT_PATH . '/controllers/MaterialesProcesoAreaController.php';
 require_once ROOT_PATH . '/models/MaterialesSolicitudModel.php';
 require_once ROOT_PATH . '/controllers/MaterialesSolicitudController.php';
 
+// Módulo de recepción y distribución de materiales
+require_once ROOT_PATH . '/models/MaterialesRecepcionDistribucionModel.php';
+require_once ROOT_PATH . '/controllers/MaterialesRecepcionDistribucionController.php';
+
 
 // ============================================================
 // SESIÓN
@@ -639,6 +643,14 @@ $router->post(
     '/materiales/solicitudes/exportar-consolidado-gfpi',
     [MaterialesSolicitudController::class, 'exportarConsolidadoGFPI']
 );
+
+
+// ============================================================
+// RECEPCIÓN Y DISTRIBUCIÓN DE MATERIALES
+// ============================================================
+$router->get('/materiales/recepcion-distribucion', [MaterialesRecepcionDistribucionController::class, 'index']);
+$router->post('/materiales/recepcion-distribucion/recibir', [MaterialesRecepcionDistribucionController::class, 'recibir']);
+$router->post('/materiales/recepcion-distribucion/distribuir', [MaterialesRecepcionDistribucionController::class, 'distribuir']);
 
 
 // ============================================================
