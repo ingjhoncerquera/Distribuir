@@ -38,10 +38,19 @@ class MaterialesRecepcionDistribucionController extends Controller
     public function recepcion(): void
     {
         [$coord, $admin] = $this->acceso();
-        $this->view('materiales/recepcion_distribucion/recepcion', [
+        $datos = [
             'solicitudes' => $this->modelo->solicitudes($coord, $admin),
             'historial' => $this->modelo->historial($coord, $admin),
-        ]);
+        ];
+
+        // Compatibilidad con despliegues que aún no hayan sincronizado las vistas nuevas.
+        $vistaRecepcion = ROOT_PATH . '/views/materiales/recepcion_distribucion/recepcion.php';
+        if (!is_file($vistaRecepcion)) {
+            $this->view('materiales/recepcion_distribucion/index', $datos);
+            return;
+        }
+
+        $this->view('materiales/recepcion_distribucion/recepcion', $datos);
     }
 
     public function distribucion(): void
