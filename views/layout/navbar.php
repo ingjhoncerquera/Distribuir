@@ -280,6 +280,12 @@ $puedeVerAreasMaterialesNavbar =
         'Coordinador',
     ]);
 
+// Recepción y distribución: únicamente Administrador y Coordinador.
+$puedeGestionarRecepcionDistribucionNavbar = Auth::hasAnyRole([
+    'Administrador',
+    'Coordinador',
+]);
+
 $rutasAreasMaterialesNavbar = [
     '/materiales/areas',
     '/materiales/areas/crear',
@@ -2587,40 +2593,25 @@ $reportesActivoNavbar = in_array(
                     </a>
 
 
-                    <a
-                        href="javascript:void(0)"
-                        class="sita-submenu-item sita-submenu-item-disabled"
-                        aria-disabled="true"
-                        onclick="return false;"
-                    >
+                    <?php if ($puedeGestionarRecepcionDistribucionNavbar): ?>
 
-                        <span class="sita-submenu-icon">
-                            📥
-                        </span>
+                        <a
+                            href="<?= e(url('/materiales/recepcion-distribucion/recepcion')) ?>"
+                            class="sita-submenu-item<?= $menuActivoNavbar('/materiales/recepcion-distribucion/recepcion') !== '' ? ' sita-submenu-item-active' : '' ?>"
+                        >
+                            <span class="sita-submenu-icon" aria-hidden="true">📥</span>
+                            <span>Recepción</span>
+                        </a>
 
-                        <span>
-                            Recepción
-                        </span>
+                        <a
+                            href="<?= e(url('/materiales/recepcion-distribucion/distribucion')) ?>"
+                            class="sita-submenu-item<?= $menuActivoNavbar('/materiales/recepcion-distribucion/distribucion') !== '' ? ' sita-submenu-item-active' : '' ?>"
+                        >
+                            <span class="sita-submenu-icon" aria-hidden="true">📤</span>
+                            <span>Distribución</span>
+                        </a>
 
-                    </a>
-
-
-                    <a
-                        href="javascript:void(0)"
-                        class="sita-submenu-item sita-submenu-item-disabled"
-                        aria-disabled="true"
-                        onclick="return false;"
-                    >
-
-                        <span class="sita-submenu-icon">
-                            📤
-                        </span>
-
-                        <span>
-                            Distribución
-                        </span>
-
-                    </a>
+                    <?php endif; ?>
 
 
                     <a
