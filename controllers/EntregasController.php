@@ -227,10 +227,10 @@ class EntregasController extends Controller
             };
 
             $campos = [
-                'Centro de formación' => (string) ($ficha['centro'] ?? ''),
                 'Código Centro de formación' => (string) ($ficha['codigo_centro'] ?? ''),
-                'Programa de formación' => (string) ($ficha['nombre_programa'] ?? ''),
                 'Código versión del programa' => trim((string) ($ficha['codigo_programa'] ?? '') . ' ' . (string) ($ficha['version_programa'] ?? '')),
+                'Centro de formación' => (string) ($ficha['centro'] ?? ''),
+                'Programa de formación' => (string) ($ficha['nombre_programa'] ?? ''),
                 'Lugar de formación' => (string) ($ficha['centro'] ?? ''),
                 'Nombre del responsable' => (string) ($datos['nombre_coordinador'] ?? ''),
                 'Cargo' => '',
