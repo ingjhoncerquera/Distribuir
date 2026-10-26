@@ -31,6 +31,14 @@ class EntregasController extends Controller
         return [$coord, $admin];
     }
 
+    public function exportarF14Entrega(): void
+    {
+        [$coord, $admin] = $this->acceso();
+        // El generador existente conserva la plantilla institucional y la lógica del F-14.
+        $exportador = new MaterialesSolicitudController();
+        $exportador->exportarEntrega();
+    }
+
     public function entregas(): void
     {
         [$coord, $admin] = $this->acceso();
