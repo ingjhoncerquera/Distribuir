@@ -180,7 +180,7 @@ class EntregasController extends Controller
         }
 
         $solicitud = null;
-        foreach ($this->modelo->solicitudes($coord, $admin) as $item) {
+        foreach ($this->modelo->solicitudesAvaladas($coord, $admin) as $item) {
             if ((int) ($item['id_solicitud'] ?? 0) === $idSolicitud) {
                 $solicitud = $item;
                 break;
