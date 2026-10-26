@@ -822,6 +822,31 @@ public function coordinadorPuedeRevisarSolicitud(
     }
 
     /**
+     * Cantidad efectivamente distribuida para una línea de solicitud.
+     * Si se indica ficha, devuelve solo lo entregado a esa ficha.
+     */
+    public function cantidadDistribuidaPorDetalle(int $idDetalle, int $idFicha = 0): float
+    {
+        if ($idDetalle <= 0) {
+            return 0.0;
+        }
+
+        $sql = "SELECT COALESCE(SUM(cantidad_distribuida), 0)
+                FROM materiales_distribucion_detalle
+                WHERE id_detalle_solicitud = :detalle";
+        $params = [':detalle' => $idDetalle];
+
+        if ($idFicha > 0) {
+            $sql .= " AND id_ficha = :ficha";
+            $params[':ficha'] = $idFicha;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        return (float) $stmt->fetchColumn();
+    }
+
+    /**
      * =========================================================
      * DESTINOS
      * =========================================================
