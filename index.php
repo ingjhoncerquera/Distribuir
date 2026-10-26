@@ -652,6 +652,7 @@ $router->get('/materiales/recepcion-distribucion', [MaterialesRecepcionDistribuc
 $router->get('/materiales/recepcion-distribucion/recepcion', [MaterialesRecepcionDistribucionController::class, 'recepcion']);
 $router->get('/materiales/recepcion-distribucion/distribucion', [MaterialesRecepcionDistribucionController::class, 'distribucion']);
 $router->post('/materiales/recepcion-distribucion/recibir', [MaterialesRecepcionDistribucionController::class, 'recibir']);
+$router->post('/materiales/recepcion-distribucion/recibir-multiple', [MaterialesRecepcionDistribucionController::class, 'recibirMultiple']);
 $router->post('/materiales/recepcion-distribucion/distribuir', [MaterialesRecepcionDistribucionController::class, 'distribuir']);
 
 
