@@ -175,6 +175,10 @@ require_once ROOT_PATH . '/controllers/MaterialesSolicitudController.php';
 require_once ROOT_PATH . '/models/MaterialesRecepcionDistribucionModel.php';
 require_once ROOT_PATH . '/controllers/MaterialesRecepcionDistribucionController.php';
 
+// Módulo independiente de entregas de materiales
+require_once ROOT_PATH . '/models/EntregasModel.php';
+require_once ROOT_PATH . '/controllers/EntregasController.php';
+
 
 // ============================================================
 // SESIÓN
