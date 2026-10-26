@@ -784,6 +784,12 @@ $router->get(
     [MaterialesSolicitudController::class, 'exportarIndividual']
 );
 
+// F-14 independiente para documentar la entrega de materiales.
+$router->get(
+    '/materiales/solicitudes/exportar-entrega',
+    [MaterialesSolicitudController::class, 'exportarEntrega']
+);
+
 // ============================================================
 // CONSULTAS DE BIENESTAR
 // ============================================================
