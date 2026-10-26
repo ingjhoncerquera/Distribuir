@@ -245,7 +245,7 @@ class EntregasController extends Controller
                 for ($i = 0; $i < $celdas->length - 1; $i++) {
                     $etiqueta = preg_replace('/\\s+/u', ' ', $texto($celdas->item($i)));
                     foreach ($campos as $nombre => $valor) {
-                        if ($etiqueta !== '' && stripos($etiqueta, $nombre) !== false) {
+                        if ($etiqueta !== '' && preg_match('/' . preg_quote($nombre, '/') . '/iu', $etiqueta) === 1) {
                             $destino = $celdas->item($i + 1);
                             if ($destino instanceof DOMElement) $escribir($destino, $valor);
                             break;
@@ -256,15 +256,15 @@ class EntregasController extends Controller
 
             $tabla = null;
             foreach ($xp->query('//w:tbl') as $t) {
-                $contenido = strtolower($texto($t));
-                if (strpos($contenido, 'material de formación') !== false && strpos($contenido, 'observaciones') !== false && strpos($contenido, 'cantidad') !== false) { $tabla = $t; break; }
+                $contenido = $texto($t);
+                if (preg_match('/material de formaci[oó]n/iu', $contenido) === 1 && preg_match('/observaciones/iu', $contenido) === 1 && preg_match('/cantidad/iu', $contenido) === 1) { $tabla = $t; break; }
             }
             if (!$tabla instanceof DOMElement) throw new RuntimeException('No se identificó la tabla de materiales original del formato; no se agregó ningún anexo.');
             $filas = $xp->query('./w:tr', $tabla);
             $filaModelo = null;
             foreach ($filas as $f) {
-                $contenido = strtolower($texto($f));
-                if (strpos($contenido, 'material de formación') === false && strpos($contenido, 'observaciones') === false && $xp->query('./w:tc', $f)->length >= 4) { $filaModelo = $f; break; }
+                $contenido = $texto($f);
+                if (preg_match('/material de formaci[oó]n/iu', $contenido) !== 1 && preg_match('/observaciones/iu', $contenido) !== 1 && $xp->query('./w:tc', $f)->length >= 4) { $filaModelo = $f; break; }
             }
             if (!$filaModelo) throw new RuntimeException('No se encontró una fila para materiales en la tabla original.');
             $cantidadCeldas = $xp->query('./w:tc', $filaModelo)->length;
@@ -285,7 +285,7 @@ class EntregasController extends Controller
             header('Content-Length: ' . filesize($salida));
             readfile($salida);
         } catch (Throwable $e) {
-            error_log('[SITA Acta GFPI-F-201] ' . $e->getMessage());
+            error_log('[SITA Acta GFPI-F-201] ' . $e->getMessage() . ' | Archivo: ' . $e->getFile() . ' | Línea: ' . $e->getLine());
             http_response_code(500); echo 'No fue posible generar el acta diligenciada. Revise el registro de errores.';
         } finally { @unlink($salida); @rmdir($dir); }
         exit;
