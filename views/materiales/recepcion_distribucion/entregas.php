@@ -40,7 +40,7 @@ $solicitudes = is_array($solicitudes ?? null) ? $solicitudes : [];
                             <td>
                                 <div class="d-flex flex-wrap gap-2">
                                     <a class="btn btn-sm btn-outline-primary" href="<?= e(url('/materiales/solicitudes/exportar-individual?id=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-excel me-1"></i>F-14 Solicitud</a>
-                                    <a class="btn btn-sm btn-primary" href="<?= e(url('/materiales/solicitudes/exportar-entrega?id=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-check me-1"></i>F-14 Entrega</a>
+                                    <a class="btn btn-sm btn-primary" href="<?= e(url('/materiales/recepcion-distribucion/entregas/f14?id=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-check me-1"></i>F-14 Entrega</a>
                                     <a class="btn btn-sm btn-outline-success" href="<?= e(url('/materiales/recepcion-distribucion/acta?id_solicitud=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-word me-1"></i>Descargar acta</a>
                                 </div>
                             </td>
