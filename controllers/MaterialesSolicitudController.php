@@ -4105,7 +4105,7 @@ if ($rutaPlantilla === null) {
             $hoja->setCellValue('E' . $fila, $descripcionCompleta);
             $hoja->setCellValue('H' . $fila, (string) ($detalle['unidad_medida'] ?? ''));
             $hoja->setCellValue('I' . $fila, (float) ($detalle['cantidad_solicitada'] ?? 0));
-            $hoja->setCellValue('J' . $fila, '');
+            $hoja->setCellValue('J' . $fila, $this->model->cantidadDistribuidaPorDetalle($idDetalle, $idFichaFiltro));
             $hoja->setCellValue('K' . $fila, (string) ($detalle['observaciones'] ?? ''));
             $fila++;
         }
