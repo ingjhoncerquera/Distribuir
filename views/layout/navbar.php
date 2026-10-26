@@ -2614,22 +2614,15 @@ $reportesActivoNavbar = in_array(
                     <?php endif; ?>
 
 
-                    <a
-                        href="javascript:void(0)"
-                        class="sita-submenu-item sita-submenu-item-disabled"
-                        aria-disabled="true"
-                        onclick="return false;"
-                    >
-
-                        <span class="sita-submenu-icon">
-                            🤝
-                        </span>
-
-                        <span>
-                            Entregas
-                        </span>
-
-                    </a>
+                    <?php if ($puedeGestionarRecepcionDistribucionNavbar): ?>
+                        <a
+                            href="<?= e(url('/materiales/recepcion-distribucion/entregas')) ?>"
+                            class="sita-submenu-item<?= $menuActivoNavbar('/materiales/recepcion-distribucion/entregas') !== '' ? ' sita-submenu-item-active' : '' ?>"
+                        >
+                            <span class="sita-submenu-icon" aria-hidden="true">🤝</span>
+                            <span>Entregas</span>
+                        </a>
+                    <?php endif; ?>
 
 
                     <a
