@@ -185,15 +185,9 @@ class EntregasModel
                     SELECT CAST(f.numero_ficha AS CHAR)
                     FROM fichas f WHERE f.id = :ficha_lookup LIMIT 1
                 )
-                OR dd.id_ficha IN (
-                    SELECT f.id FROM fichas f
-                    WHERE CAST(f.numero_ficha AS CHAR) = CAST(:ficha_numero AS CHAR)
-                )
             )";
-            $numero = (string) $idFicha;
             $params[':ficha_id'] = $idFicha;
             $params[':ficha_lookup'] = $idFicha;
-            $params[':ficha_numero'] = $numero;
         }
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
