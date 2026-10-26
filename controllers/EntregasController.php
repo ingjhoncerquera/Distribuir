@@ -260,22 +260,69 @@ class EntregasController extends Controller
                 if (preg_match('/material de formaci[oó]n/iu', $contenido) === 1 && preg_match('/observaciones/iu', $contenido) === 1 && preg_match('/cantidad/iu', $contenido) === 1) { $tabla = $t; break; }
             }
             if (!$tabla instanceof DOMElement) throw new RuntimeException('No se identificó la tabla de materiales original del formato; no se agregó ningún anexo.');
+            // Identificar la fila de encabezados y una fila de producto para usar como plantilla visual.
             $filas = $xp->query('./w:tr', $tabla);
+            $filaEncabezado = null;
             $filaModelo = null;
             foreach ($filas as $f) {
                 $contenido = $texto($f);
-                if (preg_match('/material de formaci[oó]n/iu', $contenido) !== 1 && preg_match('/observaciones/iu', $contenido) !== 1 && $xp->query('./w:tc', $f)->length >= 4) { $filaModelo = $f; break; }
+                $esEncabezado = preg_match('/material de formaci[oó]n/iu', $contenido) === 1
+                    && preg_match('/observaciones/iu', $contenido) === 1
+                    && preg_match('/cantidad/iu', $contenido) === 1;
+                if ($esEncabezado) {
+                    $filaEncabezado = $f;
+                    continue;
+                }
+                if ($filaEncabezado instanceof DOMElement && !$filaModelo instanceof DOMElement
+                    && $xp->query('./w:tc', $f)->length >= 4) {
+                    $filaModelo = $f;
+                }
             }
-            if (!$filaModelo) throw new RuntimeException('No se encontró una fila para materiales en la tabla original.');
-            $cantidadCeldas = $xp->query('./w:tc', $filaModelo)->length;
+            if (!$filaEncabezado instanceof DOMElement) {
+                throw new RuntimeException('No se encontró el encabezado de la tabla original del acta.');
+            }
+            if (!$filaModelo instanceof DOMElement) {
+                throw new RuntimeException('No se encontró una fila de producto para conservar el formato original.');
+            }
+
+            // Guardar una copia del diseño y retirar TODAS las filas posteriores al encabezado.
+            // Esto elimina las filas vacías que la plantilla trae entre productos.
+            $filaModeloPlantilla = $filaModelo->cloneNode(true);
+            $siguiente = $filaEncabezado->nextSibling;
+            while ($siguiente !== null) {
+                $actual = $siguiente;
+                $siguiente = $siguiente->nextSibling;
+                if ($actual instanceof DOMElement && $actual->namespaceURI === $ns && $actual->localName === 'tr') {
+                    $tabla->removeChild($actual);
+                }
+            }
+
+            $cantidadCeldas = $xp->query('./w:tc', $filaModeloPlantilla)->length;
+            $filaAnterior = $filaEncabezado;
             foreach ($detalles as $i => $d) {
-                $filaNueva = $i === 0 ? $filaModelo : $filaModelo->cloneNode(true);
+                $filaNueva = $filaModeloPlantilla->cloneNode(true);
                 $celdas = $xp->query('./w:tc', $filaNueva);
                 $idDetalle = (int) ($d['id'] ?? 0);
                 $entregado = $idDetalle > 0 ? $this->modelo->cantidadDistribuidaPorDetalle($idDetalle, $idFicha) : 0;
-                $valores = [(string) ($i + 1), (string) ($d['descripcion'] ?? $d['descripcion_tecnica'] ?? ''), number_format($entregado, 2, ',', '.'), $entregado > 0 ? 'Entregado' : 'Pendiente', (string) ($d['observaciones'] ?? '')];
-                for ($j = 0; $j < min($celdas->length, $cantidadCeldas); $j++) { $c = $celdas->item($j); if ($c instanceof DOMElement) $escribir($c, $valores[$j] ?? ''); }
-                if ($i > 0) $tabla->appendChild($filaNueva);
+                $valores = [
+                    (string) ($i + 1),
+                    (string) ($d['descripcion'] ?? $d['descripcion_tecnica'] ?? ''),
+                    number_format($entregado, 2, ',', '.'),
+                    $entregado > 0 ? 'Entregado' : 'Pendiente',
+                    (string) ($d['observaciones'] ?? ''),
+                ];
+                for ($j = 0; $j < min($celdas->length, $cantidadCeldas); $j++) {
+                    $celda = $celdas->item($j);
+                    if ($celda instanceof DOMElement) {
+                        $escribir($celda, $valores[$j] ?? '');
+                    }
+                }
+                if ($filaAnterior->nextSibling !== null) {
+                    $tabla->insertBefore($filaNueva, $filaAnterior->nextSibling);
+                } else {
+                    $tabla->appendChild($filaNueva);
+                }
+                $filaAnterior = $filaNueva;
             }
             if (!$zip->addFromString('word/document.xml', $dom->saveXML()) || !$zip->close()) throw new RuntimeException('No fue posible guardar el acta diligenciada.');
             $nombre = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($solicitud['numero_solicitud'] ?? $idSolicitud));
