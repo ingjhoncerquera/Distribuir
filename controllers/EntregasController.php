@@ -35,8 +35,12 @@ class EntregasController extends Controller
     {
         [$coord, $admin] = $this->acceso();
         // El generador existente conserva la plantilla institucional y la lógica del F-14.
+        // Indicar al generador existente que debe emitir el F-14 de entrega.
+        // Se invoca exportarIndividual(), disponible también en versiones anteriores
+        // del controlador de solicitudes, para evitar depender de exportarEntrega().
+        $_GET['tipo_exportacion'] = 'entrega';
         $exportador = new MaterialesSolicitudController();
-        $exportador->exportarEntrega();
+        $exportador->exportarIndividual();
     }
 
     public function entregas(): void
