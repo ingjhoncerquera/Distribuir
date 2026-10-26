@@ -203,9 +203,16 @@ class EntregasController extends Controller
                 break;
             }
         }
-        if ($plantilla === null || !class_exists('ZipArchive')) {
+        if ($plantilla === null) {
+            error_log('[SITA Acta GFPI-F-201] Plantilla no encontrada. Rutas revisadas: ' . implode(' | ', $plantillas));
             http_response_code(500);
-            exit('No se encontró la plantilla GFPI-F-201 o la extensión ZipArchive no está habilitada.');
+            exit('No se encontró la plantilla GFPI-F-201 en el servidor. Cargue el archivo DOCX en la carpeta raíz de SITA con este nombre exacto: 4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx');
+        }
+
+        if (!class_exists('ZipArchive')) {
+            error_log('[SITA Acta GFPI-F-201] La extensión PHP ZipArchive no está habilitada.');
+            http_response_code(500);
+            exit('La extensión ZipArchive de PHP no está habilitada en el servidor. Actívela desde la configuración de PHP del hosting (Extensiones PHP) o solicite al proveedor que la habilite.');
         }
 
         $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sita_acta_' . bin2hex(random_bytes(6));
