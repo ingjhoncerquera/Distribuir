@@ -79,7 +79,23 @@ class MaterialesRecepcionDistribucionController extends Controller
     }
 
     
-public function distribuir(): void
+public function recibirMultiple(): void
+    {
+        if (!isPost()) $this->redirect('/materiales/recepcion-distribucion/recepcion');
+        exigirCsrf();
+        [$coord, $admin] = $this->acceso();
+        try {
+            $recepciones = post('recepciones', []);
+            if (!is_array($recepciones)) throw new RuntimeException('El formato de las recepciones no es válido.');
+            $this->modelo->recibirMultiple($recepciones, trim((string) post('fecha', date('Y-m-d'))), trim((string) post('remision', '')), trim((string) post('observaciones', '')), (int) Auth::id(), $coord, $admin);
+            flash('success', 'Recepciones registradas correctamente.');
+        } catch (Throwable $e) {
+            flash('error', defined('APP_DEBUG') && APP_DEBUG ? $e->getMessage() : 'No fue posible registrar las recepciones. Verifique las cantidades y los saldos pendientes.');
+        }
+        $this->redirect('/materiales/recepcion-distribucion/recepcion');
+    }
+
+    public function distribuir(): void
 {
     if (!isPost()) {
         $this->redirect('/materiales/recepcion-distribucion/distribucion');
