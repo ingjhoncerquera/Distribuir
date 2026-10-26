@@ -3655,8 +3655,20 @@ public function exportarGFPI(): void
  * =========================================================
  * No modifica el proceso ni el consolidado GFPI-F-186.
  */
+/**
+ * Exporta el F-14 independiente para soportar la entrega de materiales.
+ * Conserva el formato institucional completo e incluye las cantidades entregadas.
+ */
+public function exportarEntrega(): void
+{
+    $_GET['tipo_exportacion'] = 'entrega';
+    $this->exportarIndividual();
+}
+
 public function exportarIndividual(): void
 {
+    $esEntrega = (($_GET['tipo_exportacion'] ?? '') === 'entrega');
+    $prefijoF14 = $esEntrega ? 'GIL-F-014_Entrega_' : 'GIL-F-014_Solicitud_';
     $idSolicitud = (int) ($_GET['id'] ?? $_GET['id_solicitud'] ?? 0);
     if ($idSolicitud <= 0) $this->error('La solicitud indicada no es válida.');
 
@@ -3731,7 +3743,7 @@ public function exportarIndividual(): void
             $this->generarF14ParaFicha($idSolicitud, $solicitud, $idFicha, $tmp);
             while (ob_get_level() > 0) ob_end_clean();
             header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            header('Content-Disposition: attachment; filename="GIL-F-014_Solicitud_' . $numeroSolicitud . '_Ficha_' . $numeroFicha . '.xlsx"');
+            header('Content-Disposition: attachment; filename="' . $prefijoF14 . $numeroSolicitud . '_Ficha_' . $numeroFicha . '.xlsx"');
             header('Content-Length: ' . filesize($tmp));
             header('Cache-Control: max-age=0, must-revalidate');
             header('Pragma: public');
@@ -3755,7 +3767,7 @@ public function exportarIndividual(): void
         $this->error('No fue posible preparar los archivos F-14.');
     }
 
-    $rutaZip = $directorio . DIRECTORY_SEPARATOR . 'GIL-F-014_Solicitud_' . $numeroSolicitud . '.zip';
+    $rutaZip = $directorio . DIRECTORY_SEPARATOR . $prefijoF14 . $numeroSolicitud . '.zip';
     $zip = new \ZipArchive();
     $zipAbierto = false;
 
@@ -3786,7 +3798,7 @@ public function exportarIndividual(): void
 
         while (ob_get_level() > 0) ob_end_clean();
         header('Content-Type: application/zip');
-        header('Content-Disposition: attachment; filename="GIL-F-014_Solicitud_' . $numeroSolicitud . '.zip"');
+        header('Content-Disposition: attachment; filename="' . $prefijoF14 . $numeroSolicitud . '.zip"');
         header('Content-Length: ' . filesize($rutaZip));
         header('Cache-Control: no-cache, must-revalidate');
         header('Pragma: public');
