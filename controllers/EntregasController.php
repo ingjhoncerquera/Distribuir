@@ -174,124 +174,110 @@ class EntregasController extends Controller
     {
         [$coord, $admin] = $this->acceso();
         $idSolicitud = (int) ($_GET['id_solicitud'] ?? 0);
-        if ($idSolicitud <= 0) {
-            http_response_code(400);
-            exit('La solicitud indicada no es válida.');
-        }
-
+        if ($idSolicitud <= 0) { http_response_code(400); exit('La solicitud indicada no es válida.'); }
         $solicitud = null;
         foreach ($this->modelo->solicitudesAvaladas($coord, $admin) as $item) {
-            if ((int) ($item['id_solicitud'] ?? 0) === $idSolicitud) {
-                $solicitud = $item;
-                break;
-            }
+            if ((int) ($item['id_solicitud'] ?? 0) === $idSolicitud) { $solicitud = $item; break; }
         }
-        if (!$solicitud || ($solicitud['estado'] ?? '') !== 'avalada') {
-            http_response_code(404);
-            exit('La solicitud no existe, no está avalada o no está dentro de su ámbito de acceso.');
-        }
+        if (!$solicitud || ($solicitud['estado'] ?? '') !== 'avalada') { http_response_code(404); exit('La solicitud no existe, no está avalada o no está dentro de su ámbito de acceso.'); }
 
-        $plantillas = [
-            ROOT_PATH . '/4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx',
-            ROOT_PATH . '/storage/plantillas/4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx',
-            ROOT_PATH . '/uploads/plantillas/4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx',
-        ];
+        $archivo = '4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx';
         $plantilla = null;
-        foreach ($plantillas as $ruta) {
-            if (is_file($ruta) && is_readable($ruta)) {
-                $plantilla = $ruta;
-                break;
-            }
+        foreach ([ROOT_PATH . '/' . $archivo, ROOT_PATH . '/storage/plantillas/' . $archivo, ROOT_PATH . '/uploads/plantillas/' . $archivo] as $ruta) {
+            if (is_file($ruta) && is_readable($ruta)) { $plantilla = $ruta; break; }
         }
-        if ($plantilla === null) {
-            error_log('[SITA Acta GFPI-F-201] Plantilla no encontrada. Rutas revisadas: ' . implode(' | ', $plantillas));
-            http_response_code(500);
-            exit('No se encontró la plantilla GFPI-F-201 en el servidor. Cargue el archivo DOCX en la carpeta raíz de SITA con este nombre exacto: 4. GFPI-F-201_Acta_De_Entrega_Materiales_De_Formación.docx');
-        }
-
-        if (!class_exists('ZipArchive')) {
-            error_log('[SITA Acta GFPI-F-201] La extensión PHP ZipArchive no está habilitada.');
-            http_response_code(500);
-            exit('La extensión ZipArchive de PHP no está habilitada en el servidor. Actívela desde la configuración de PHP del hosting (Extensiones PHP) o solicite al proveedor que la habilite.');
-        }
+        if ($plantilla === null) { http_response_code(500); exit('No se encontró la plantilla original GFPI-F-201 en el servidor.'); }
+        if (!class_exists('ZipArchive') || !class_exists('DOMDocument')) { http_response_code(500); exit('El servidor requiere las extensiones PHP ZipArchive y DOM.'); }
 
         $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sita_acta_' . bin2hex(random_bytes(6));
-        if (!mkdir($dir, 0700, true)) {
-            http_response_code(500);
-            exit('No fue posible preparar el acta.');
-        }
+        if (!mkdir($dir, 0700, true)) { http_response_code(500); exit('No fue posible preparar el acta.'); }
         $salida = $dir . DIRECTORY_SEPARATOR . 'Acta_GFPI-F-201.docx';
         try {
-            if (!copy($plantilla, $salida)) {
-                throw new RuntimeException('No fue posible copiar la plantilla del acta.');
-            }
+            if (!copy($plantilla, $salida)) throw new RuntimeException('No fue posible copiar la plantilla.');
             $zip = new ZipArchive();
-            if ($zip->open($salida) !== true) {
-                throw new RuntimeException('No fue posible abrir la plantilla DOCX.');
-            }
+            if ($zip->open($salida) !== true) throw new RuntimeException('No fue posible abrir la plantilla DOCX.');
             $xml = $zip->getFromName('word/document.xml');
-            if ($xml === false || strpos($xml, '</w:body>') === false) {
-                $zip->close();
-                throw new RuntimeException('La plantilla no contiene un documento Word válido.');
+            if ($xml === false) { $zip->close(); throw new RuntimeException('El DOCX no contiene word/document.xml.'); }
+
+            $ficha = $this->modelo->obtenerDatosFichaFormato($idSolicitud);
+            $datos = $this->modelo->obtenerSolicitud($idSolicitud) ?? [];
+            $detalles = $this->modelo->listarDetalles($idSolicitud);
+            $idFicha = (int) ($ficha['id_ficha'] ?? 0);
+            $dom = new DOMDocument('1.0', 'UTF-8');
+            $dom->preserveWhiteSpace = true;
+            if (!$dom->loadXML($xml, LIBXML_NONET)) { $zip->close(); throw new RuntimeException('No fue posible leer el XML de la plantilla.'); }
+            $xp = new DOMXPath($dom);
+            $xp->registerNamespace('w', 'http://schemas.openxmlformats.org/wordprocessingml/2006/main');
+            $ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+            $texto = static function (DOMNode $n) use ($ns): string {
+                $v = ''; foreach ($n->getElementsByTagNameNS($ns, 't') as $t) $v .= $t->textContent; return trim($v);
+            };
+            $escribir = static function (DOMElement $celda, string $valor) use ($xp, $dom, $ns): void {
+                $ts = $xp->query('.//w:t', $celda);
+                if ($ts && $ts->length) {
+                    $ts->item(0)->nodeValue = $valor;
+                    for ($i = $ts->length - 1; $i > 0; $i--) { $n = $ts->item($i); if ($n && $n->parentNode) $n->parentNode->removeChild($n); }
+                } else {
+                    $p = $xp->query('./w:p', $celda)->item(0);
+                    if (!$p) { $p = $dom->createElementNS($ns, 'w:p'); $celda->appendChild($p); }
+                    $run = $dom->createElementNS($ns, 'w:r'); $t = $dom->createElementNS($ns, 'w:t');
+                    $t->setAttributeNS('http://www.w3.org/XML/1998/namespace', 'xml:space', 'preserve');
+                    $t->appendChild($dom->createTextNode($valor)); $run->appendChild($t); $p->appendChild($run);
+                }
+            };
+
+            $campos = [
+                'Centro de formación' => (string) ($ficha['centro'] ?? ''),
+                'Código Centro de formación' => (string) ($ficha['codigo_centro'] ?? ''),
+                'Programa de formación' => (string) ($ficha['nombre_programa'] ?? ''),
+                'Código versión del programa' => trim((string) ($ficha['codigo_programa'] ?? '') . ' ' . (string) ($ficha['version_programa'] ?? '')),
+                'Lugar de formación' => (string) ($ficha['centro'] ?? ''),
+                'Nombre del responsable' => (string) ($datos['nombre_coordinador'] ?? ''),
+                'Cargo' => '',
+                'Correo electrónico' => '',
+                'Identificación de la ficha' => (string) ($ficha['numero_ficha'] ?? ''),
+                'Nombre completo' => '',
+                'Documento de identidad' => '',
+            ];
+            foreach ($xp->query('//w:tbl/w:tr') as $fila) {
+                $celdas = $xp->query('./w:tc', $fila);
+                if (!$celdas || $celdas->length < 2) continue;
+                for ($i = 0; $i < $celdas->length - 1; $i++) {
+                    $etiqueta = preg_replace('/\\s+/u', ' ', $texto($celdas->item($i)));
+                    foreach ($campos as $nombre => $valor) {
+                        if ($etiqueta !== '' && stripos($etiqueta, $nombre) !== false) {
+                            $destino = $celdas->item($i + 1);
+                            if ($destino instanceof DOMElement) $escribir($destino, $valor);
+                            break;
+                        }
+                    }
+                }
             }
 
-            $esc = static function ($value): string {
-                return htmlspecialchars((string) $value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
-            };
-            $numero = $esc($solicitud['numero_solicitud'] ?? ('Solicitud ' . $idSolicitud));
-            $instructor = $esc($solicitud['solicitante'] ?? '');
-            $area = $esc($solicitud['nombre_area'] ?? '');
-            $proceso = $esc($solicitud['nombre_proceso'] ?? '');
-            $fecha = date('d/m/Y');
-
-            $parrafo = static function (string $texto, bool $negrita = false): string {
-                $contenido = htmlspecialchars($texto, ENT_XML1 | ENT_COMPAT, 'UTF-8');
-                $runPr = $negrita ? '<w:rPr><w:b/></w:rPr>' : '';
-                return '<w:p><w:r>' . $runPr . '<w:t xml:space="preserve">' . $contenido . '</w:t></w:r></w:p>';
-            };
-            $celda = static function (string $texto, bool $negrita = false): string {
-                $contenido = htmlspecialchars($texto, ENT_XML1 | ENT_COMPAT, 'UTF-8');
-                $runPr = $negrita ? '<w:rPr><w:b/></w:rPr>' : '';
-                return '<w:tc><w:tcPr><w:tcW w:w="2200" w:type="dxa"/></w:tcPr><w:p><w:r>' . $runPr . '<w:t xml:space="preserve">' . $contenido . '</w:t></w:r></w:p></w:tc>';
-            };
-            $fila = static function (array $valores, bool $encabezado = false) use ($celda): string {
-                $celdas = '';
-                foreach ($valores as $valor) $celdas .= $celda((string) $valor, $encabezado);
-                return '<w:tr>' . $celdas . '</w:tr>';
-            };
-
-            $anexo = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
-            $anexo .= $parrafo('ANEXO DE ENTREGA DE MATERIALES — GFPI-F-201', true);
-            $anexo .= $parrafo('Número de solicitud: ' . html_entity_decode($numero, ENT_QUOTES | ENT_XML1, 'UTF-8'));
-            $anexo .= $parrafo('Instructor solicitante: ' . html_entity_decode($instructor, ENT_QUOTES | ENT_XML1, 'UTF-8'));
-            $anexo .= $parrafo('Área: ' . html_entity_decode($area, ENT_QUOTES | ENT_XML1, 'UTF-8') . ' | Proceso: ' . html_entity_decode($proceso, ENT_QUOTES | ENT_XML1, 'UTF-8'));
-            $anexo .= $parrafo('Fecha de generación: ' . $fecha);
-            $anexo .= $parrafo('Detalle de cantidades solicitadas y entregadas', true);
-            $anexo .= '<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>';
-            $anexo .= $fila(['Material', 'Unidad', 'Solicitado', 'Entregado'], true);
-            $totalEntregado = 0.0;
-            foreach (($solicitud['detalles'] ?? []) as $detalle) {
-                $entregado = (float) ($detalle['distribuido'] ?? 0);
-                $totalEntregado += $entregado;
-                $anexo .= $fila([
-                    (string) ($detalle['descripcion'] ?? 'Material'),
-                    (string) ($detalle['unidad_medida'] ?? 'Unidad'),
-                    number_format((float) ($detalle['cantidad_solicitada'] ?? 0), 2, ',', '.'),
-                    number_format($entregado, 2, ',', '.'),
-                ]);
+            $tabla = null;
+            foreach ($xp->query('//w:tbl') as $t) {
+                $contenido = strtolower($texto($t));
+                if (strpos($contenido, 'material de formación') !== false && strpos($contenido, 'observaciones') !== false && strpos($contenido, 'cantidad') !== false) { $tabla = $t; break; }
             }
-            $anexo .= '</w:tbl>';
-            $anexo .= $parrafo('Total de unidades entregadas: ' . number_format($totalEntregado, 2, ',', '.'), true);
-            $anexo .= $parrafo('Las cantidades entregadas corresponden a los movimientos de distribución registrados en SITA.');
-            $anexo .= $parrafo('Firma de quien entrega: ____________________________________');
-            $anexo .= $parrafo('Firma del instructor que recibe: _____________________________');
-            $anexo .= $parrafo('Observaciones: ______________________________________________________________');
-
-            $xml = str_replace('</w:body>', $anexo . '</w:body>', $xml);
-            if (!$zip->addFromString('word/document.xml', $xml) || !$zip->close()) {
-                throw new RuntimeException('No fue posible guardar el contenido diligenciado del acta.');
+            if (!$tabla instanceof DOMElement) throw new RuntimeException('No se identificó la tabla de materiales original del formato; no se agregó ningún anexo.');
+            $filas = $xp->query('./w:tr', $tabla);
+            $filaModelo = null;
+            foreach ($filas as $f) {
+                $contenido = strtolower($texto($f));
+                if (strpos($contenido, 'material de formación') === false && strpos($contenido, 'observaciones') === false && $xp->query('./w:tc', $f)->length >= 4) { $filaModelo = $f; break; }
             }
-
+            if (!$filaModelo) throw new RuntimeException('No se encontró una fila para materiales en la tabla original.');
+            $cantidadCeldas = $xp->query('./w:tc', $filaModelo)->length;
+            foreach ($detalles as $i => $d) {
+                $filaNueva = $i === 0 ? $filaModelo : $filaModelo->cloneNode(true);
+                $celdas = $xp->query('./w:tc', $filaNueva);
+                $idDetalle = (int) ($d['id'] ?? 0);
+                $entregado = $idDetalle > 0 ? $this->modelo->cantidadDistribuidaPorDetalle($idDetalle, $idFicha) : 0;
+                $valores = [(string) ($i + 1), (string) ($d['descripcion'] ?? $d['descripcion_tecnica'] ?? ''), number_format($entregado, 2, ',', '.'), $entregado > 0 ? 'Entregado' : 'Pendiente', (string) ($d['observaciones'] ?? '')];
+                for ($j = 0; $j < min($celdas->length, $cantidadCeldas); $j++) { $c = $celdas->item($j); if ($c instanceof DOMElement) $escribir($c, $valores[$j] ?? ''); }
+                if ($i > 0) $tabla->appendChild($filaNueva);
+            }
+            if (!$zip->addFromString('word/document.xml', $dom->saveXML()) || !$zip->close()) throw new RuntimeException('No fue posible guardar el acta diligenciada.');
             $nombre = preg_replace('/[^A-Za-z0-9_-]/', '_', (string) ($solicitud['numero_solicitud'] ?? $idSolicitud));
             while (ob_get_level() > 0) ob_end_clean();
             header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -300,12 +286,8 @@ class EntregasController extends Controller
             readfile($salida);
         } catch (Throwable $e) {
             error_log('[SITA Acta GFPI-F-201] ' . $e->getMessage());
-            http_response_code(500);
-            echo 'No fue posible generar el acta diligenciada. Revise el registro de errores.';
-        } finally {
-            @unlink($salida);
-            @rmdir($dir);
-        }
+            http_response_code(500); echo 'No fue posible generar el acta diligenciada. Revise el registro de errores.';
+        } finally { @unlink($salida); @rmdir($dir); }
         exit;
     }
 
