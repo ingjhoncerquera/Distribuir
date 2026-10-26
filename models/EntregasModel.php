@@ -155,7 +155,8 @@ class EntregasModel
     public function obtenerDatosFichaFormato(int $idSolicitud): array
     {
         $sql = "SELECT f.id AS id_ficha, f.numero_ficha, f.regional, f.centro,
-                       f.id_programa, p.nombre AS nombre_programa
+                       f.id_programa, f.version_programa,
+                       p.codigo AS codigo_programa, p.nombre AS nombre_programa
                 FROM materiales_solicitud_detalle sd
                 JOIN materiales_solicitud_destinos d ON d.id_detalle_solicitud = sd.id
                 JOIN fichas f ON f.id = d.id_ficha
