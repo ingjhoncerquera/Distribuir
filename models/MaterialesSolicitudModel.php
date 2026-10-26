@@ -831,14 +831,28 @@ public function coordinadorPuedeRevisarSolicitud(
             return 0.0;
         }
 
-        $sql = "SELECT COALESCE(SUM(cantidad_distribuida), 0)
-                FROM materiales_distribucion_detalle
-                WHERE id_detalle_solicitud = :detalle";
+        $sql = "SELECT COALESCE(SUM(dd.cantidad_distribuida), 0)
+                FROM materiales_distribucion_detalle dd
+                WHERE dd.id_detalle_solicitud = :detalle";
         $params = [':detalle' => $idDetalle];
 
         if ($idFicha > 0) {
-            $sql .= " AND id_ficha = :ficha";
+            /*
+             * En las instalaciones antiguas, id_ficha puede haberse guardado
+             * como el ID interno de la ficha o como su número visible.
+             * Aceptar ambos formatos evita que el F-14 muestre la entrega vacía.
+             */
+            $sql .= " AND (
+                CAST(dd.id_ficha AS CHAR) = CAST(:ficha AS CHAR)
+                OR CAST(dd.id_ficha AS CHAR) = (
+                    SELECT CAST(f.numero_ficha AS CHAR)
+                    FROM fichas f
+                    WHERE f.id = :ficha_id
+                    LIMIT 1
+                )
+            )";
             $params[':ficha'] = $idFicha;
+            $params[':ficha_id'] = $idFicha;
         }
 
         $stmt = $this->db->prepare($sql);
