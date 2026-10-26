@@ -185,6 +185,52 @@ private function detalles(int $solicitud): array
         $q->execute([':u'=>$u,':a'=>$accion,':t'=>$tabla,':id'=>$id,':ip'=>substr((string)($_SERVER['REMOTE_ADDR']??''),0,45)?:null,':d'=>$descripcion]);
     }
 
+    public function recibirMultiple(array $recepciones, string $fecha, string $remision, string $obs, int $usuario, int $coord, bool $admin): void
+    {
+        $dt = DateTime::createFromFormat('!Y-m-d', $fecha);
+        if (!$dt || $dt->format('Y-m-d') !== $fecha) throw new RuntimeException('Fecha inválida.');
+        $lote = [];
+        foreach ($recepciones as $item) {
+            if (!is_array($item)) continue;
+            $detalle = (int)($item['id_detalle'] ?? 0);
+            $texto = str_replace(',', '.', trim((string)($item['cantidad'] ?? '')));
+            if ($texto === '') continue;
+            if (!is_numeric($texto)) throw new RuntimeException('Hay una cantidad que no es válida.');
+            $cantidad = (float)$texto;
+            if (!is_finite($cantidad) || $cantidad < 0) throw new RuntimeException('Las cantidades no pueden ser negativas ni inválidas.');
+            if ($cantidad == 0.0) continue;
+            if ($detalle <= 0) throw new RuntimeException('Hay una línea de solicitud inválida.');
+            if (!isset($lote[$detalle])) $lote[$detalle] = ['cantidad'=>0.0,'remision'=>trim((string)($item['remision'] ?? '')),'observaciones'=>trim((string)($item['observaciones'] ?? ''))];
+            $lote[$detalle]['cantidad'] += $cantidad;
+        }
+        if (!$lote) throw new RuntimeException('Ingrese al menos una cantidad mayor que cero.');
+        $this->db->beginTransaction();
+        try {
+            $contextos = [];
+            foreach ($lote as $detalle=>$item) {
+                $ctx=$this->validarDetalle((int)$detalle,$coord,$admin);
+                $q=$this->db->prepare("SELECT COALESCE(SUM(cantidad_recibida),0) FROM materiales_recepcion_detalle WHERE id_detalle_solicitud=:d");
+                $q->execute([':d'=>(int)$detalle]); $recibido=(float)$q->fetchColumn();
+                if ($recibido+$item['cantidad']>(float)$ctx['cantidad_solicitada']+0.00001) throw new RuntimeException("La cantidad de la línea {$detalle} supera lo pendiente por recibir.");
+                $contextos[(int)$detalle]=$ctx;
+            }
+            $cab=$this->db->prepare("INSERT INTO materiales_recepciones(id_solicitud,fecha_recepcion,observaciones,id_usuario) VALUES(:s,:f,:o,:u)");
+            $det=$this->db->prepare("INSERT INTO materiales_recepcion_detalle(id_recepcion,id_detalle_solicitud,cantidad_recibida,observaciones) VALUES(:r,:d,:c,:o)");
+            foreach ($lote as $detalle=>$item) {
+                $ctx=$contextos[(int)$detalle];
+                $rem=$item['remision']!==''?$item['remision']:trim($remision);
+                $ob=$item['observaciones']!==''?$item['observaciones']:trim($obs);
+                $texto=$rem!==''?'Remisión: '.$rem:'';
+                if($ob!=='') $texto.=($texto!==''?"\n":'').$ob;
+                $cab->execute([':s'=>(int)$ctx['id_solicitud'],':f'=>$fecha.' '.date('H:i:s'),':o'=>$texto!==''?$texto:null,':u'=>$usuario]);
+                $id=(int)$this->db->lastInsertId();
+                $det->execute([':r'=>$id,':d'=>(int)$detalle,':c'=>$item['cantidad'],':o'=>$ob!==''?$ob:null]);
+                $this->auditar($usuario,'INSERT','materiales_recepciones',$id,"Recepción múltiple: solicitud {$ctx['id_solicitud']}, detalle {$detalle}, cantidad {$item['cantidad']}. {$texto}");
+            }
+            $this->db->commit();
+        } catch(Throwable $e) { if($this->db->inTransaction()) $this->db->rollBack(); throw $e; }
+    }
+
     public function recibir(int $detalle,float $cantidad,string $fecha,string $remision,string $obs,int $usuario,int $coord,bool $admin):void {
         if(!is_finite($cantidad)||$cantidad<=0)throw new RuntimeException('La cantidad debe ser mayor que cero.');
         $dt=DateTime::createFromFormat('!Y-m-d',$fecha);if(!$dt||$dt->format('Y-m-d')!==$fecha)throw new RuntimeException('Fecha inválida.');
