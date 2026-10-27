@@ -280,11 +280,31 @@ $puedeVerAreasMaterialesNavbar =
         'Coordinador',
     ]);
 
-// Recepción y distribución: únicamente Administrador y Coordinador.
+// Gestión de recepción/distribución para Administrador y Coordinador.
 $puedeGestionarRecepcionDistribucionNavbar = Auth::hasAnyRole([
     'Administrador',
     'Coordinador',
 ]);
+
+// El instructor líder puede consultar únicamente el apartado Entregas.
+$puedeVerEntregasNavbar = $puedeGestionarRecepcionDistribucionNavbar;
+if (!$puedeVerEntregasNavbar) {
+    foreach ($rolesNavbar as $rolEntregasNavbar) {
+        $nombreRolEntregasNavbar = is_array($rolEntregasNavbar)
+            ? (string) ($rolEntregasNavbar['nombre'] ?? '')
+            : (string) $rolEntregasNavbar;
+        $nombreRolEntregasNavbar = mb_strtolower(trim($nombreRolEntregasNavbar));
+        $nombreRolEntregasNavbar = strtr($nombreRolEntregasNavbar, [
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u',
+        ]);
+        if (in_array($nombreRolEntregasNavbar, [
+            'lider de ficha', 'instructor lider', 'instructor lider de ficha',
+        ], true)) {
+            $puedeVerEntregasNavbar = true;
+            break;
+        }
+    }
+}
 
 $rutasAreasMaterialesNavbar = [
     '/materiales/areas',
@@ -2614,7 +2634,7 @@ $reportesActivoNavbar = in_array(
                     <?php endif; ?>
 
 
-                    <?php if ($puedeGestionarRecepcionDistribucionNavbar): ?>
+                    <?php if ($puedeVerEntregasNavbar): ?>
                         <a
                             href="<?= e(url('/materiales/recepcion-distribucion/entregas')) ?>"
                             class="sita-submenu-item<?= $menuActivoNavbar('/materiales/recepcion-distribucion/entregas') !== '' ? ' sita-submenu-item-active' : '' ?>"
