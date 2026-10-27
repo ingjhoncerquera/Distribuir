@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/views/layout/header.php';
 require_once ROOT_PATH . '/views/layout/navbar.php';
 
 $solicitudes = is_array($solicitudes ?? null) ? $solicitudes : [];
+$esInstructorLider = (bool) ($esInstructorLider ?? false);
 ?>
 <div class="container-fluid py-4">
     <div class="mb-4">
@@ -39,7 +40,9 @@ $solicitudes = is_array($solicitudes ?? null) ? $solicitudes : [];
                             <td class="text-end fw-semibold"><?= e(number_format($totalDistribuido, 2, ',', '.')) ?></td>
                             <td>
                                 <div class="d-flex flex-wrap gap-2">
+                                    <?php if (!$esInstructorLider): ?>
                                     <a class="btn btn-sm btn-outline-primary" href="<?= e(url('/materiales/solicitudes/exportar-individual?id=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-excel me-1"></i>F-14 Solicitud</a>
+                                    <?php endif; ?>
                                     <a class="btn btn-sm btn-primary" href="<?= e(url('/materiales/recepcion-distribucion/entregas/f14?id=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-check me-1"></i>F-14 Entrega</a>
                                     <a class="btn btn-sm btn-outline-success" href="<?= e(url('/materiales/recepcion-distribucion/acta?id_solicitud=' . $idSolicitud)) ?>"><i class="bi bi-file-earmark-word me-1"></i>Descargar acta</a>
                                 </div>
