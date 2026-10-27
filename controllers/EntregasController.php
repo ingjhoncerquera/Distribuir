@@ -183,6 +183,7 @@ class EntregasController extends Controller
         [$coord, $admin, $lider] = $this->acceso();
         $this->view('materiales/recepcion_distribucion/entregas', [
             'solicitudes' => $this->modelo->solicitudesAvaladas($coord, $admin, $lider),
+            'esInstructorLider' => $lider && !$admin && !Auth::hasRole('Coordinador'),
         ]);
     }
 
