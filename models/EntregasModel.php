@@ -37,9 +37,18 @@ class EntregasModel
         return $id === false ? null : (int) $id;
     }
 
-    public function solicitudesAvaladas(int $coordinador, bool $admin): array
+    public function solicitudesAvaladas(int $profesionalUsuario, bool $admin, bool $lider = false): array
     {
-        $filtro = $admin ? '' : ' AND pr.id_coordinador = :coordinador';
+        if ($admin) {
+            $filtro = '';
+            $params = [];
+        } elseif ($lider) {
+            $filtro = ' AND s.id_profesional_solicitante = :profesional';
+            $params = [':profesional' => $profesionalUsuario];
+        } else {
+            $filtro = ' AND pr.id_coordinador = :coordinador';
+            $params = [':coordinador' => $profesionalUsuario];
+        }
         $sql = "SELECT s.id AS id_solicitud, s.numero_solicitud, s.titulo,
                        s.estado, s.fecha_envio, pa.nombre_area,
                        pr.anio, pr.nombre AS nombre_proceso,
@@ -52,7 +61,7 @@ class EntregasModel
                 WHERE s.estado = 'avalada' {$filtro}
                 ORDER BY pr.anio DESC, s.id DESC";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($admin ? [] : [':coordinador' => $coordinador]);
+        $stmt->execute($params);
         $solicitudes = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($solicitudes as &$solicitud) {
             $solicitud['detalles'] = $this->detallesParaListado((int) $solicitud['id_solicitud']);
