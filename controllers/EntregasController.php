@@ -12,28 +12,44 @@ class EntregasController extends Controller
         $this->modelo = new EntregasModel();
     }
 
+    private function esInstructorLider(): bool
+    {
+        foreach (Auth::roles() as $rol) {
+            $nombre = is_array($rol) ? (string) ($rol['nombre'] ?? '') : (string) $rol;
+            $nombre = mb_strtolower(trim($nombre));
+            $nombre = strtr($nombre, ['á'=>'a', 'é'=>'e', 'í'=>'i', 'ó'=>'o', 'ú'=>'u']);
+            if (in_array($nombre, ['lider de ficha', 'instructor lider', 'instructor lider de ficha'], true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private function acceso(): array
     {
         $admin = Auth::hasRole('Administrador');
-        if (!$admin && !Auth::hasRole('Coordinador')) {
+        $coordinador = Auth::hasRole('Coordinador');
+        $lider = $this->esInstructorLider();
+
+        if (!$admin && !$coordinador && !$lider) {
             http_response_code(403);
             die('No tiene permisos para acceder al módulo Entregas.');
         }
 
-        $coord = 0;
+        $profesional = 0;
         if (!$admin) {
-            $coord = $this->modelo->profesionalUsuario((int) Auth::id()) ?? 0;
-            if ($coord <= 0) {
+            $profesional = $this->modelo->profesionalUsuario((int) Auth::id()) ?? 0;
+            if ($profesional <= 0) {
                 http_response_code(403);
-                die('El coordinador no tiene un profesional activo asociado.');
+                die('El usuario no tiene un profesional activo asociado.');
             }
         }
-        return [$coord, $admin];
+        return [$profesional, $admin, $lider];
     }
 
     public function exportarF14Entrega(): void
     {
-        [$coord, $admin] = $this->acceso();
+        [$coord, $admin, $lider] = $this->acceso();
         $idSolicitud = (int) ($_GET['id'] ?? $_GET['id_solicitud'] ?? 0);
         if ($idSolicitud <= 0) {
             http_response_code(400);
@@ -42,7 +58,7 @@ class EntregasController extends Controller
 
         // Restringir la exportación a solicitudes avaladas visibles para este usuario.
         $visible = false;
-        foreach ($this->modelo->solicitudesAvaladas($coord, $admin) as $item) {
+        foreach ($this->modelo->solicitudesAvaladas($coord, $admin, $lider) as $item) {
             if ((int) ($item['id_solicitud'] ?? 0) === $idSolicitud) {
                 $visible = true;
                 break;
@@ -164,19 +180,19 @@ class EntregasController extends Controller
 
     public function entregas(): void
     {
-        [$coord, $admin] = $this->acceso();
+        [$coord, $admin, $lider] = $this->acceso();
         $this->view('materiales/recepcion_distribucion/entregas', [
-            'solicitudes' => $this->modelo->solicitudesAvaladas($coord, $admin),
+            'solicitudes' => $this->modelo->solicitudesAvaladas($coord, $admin, $lider),
         ]);
     }
 
     public function descargarActa(): void
     {
-        [$coord, $admin] = $this->acceso();
+        [$coord, $admin, $lider] = $this->acceso();
         $idSolicitud = (int) ($_GET['id_solicitud'] ?? 0);
         if ($idSolicitud <= 0) { http_response_code(400); exit('La solicitud indicada no es válida.'); }
         $solicitud = null;
-        foreach ($this->modelo->solicitudesAvaladas($coord, $admin) as $item) {
+        foreach ($this->modelo->solicitudesAvaladas($coord, $admin, $lider) as $item) {
             if ((int) ($item['id_solicitud'] ?? 0) === $idSolicitud) { $solicitud = $item; break; }
         }
         if (!$solicitud || ($solicitud['estado'] ?? '') !== 'avalada') { http_response_code(404); exit('La solicitud no existe, no está avalada o no está dentro de su ámbito de acceso.'); }
