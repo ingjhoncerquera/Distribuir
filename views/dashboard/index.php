@@ -2111,32 +2111,7 @@ $consultasBienestar = array_values(array_filter(
 
     <main class="sita-main">
 
-        <header class="sita-topbar">
-
-            <div class="sita-page-heading">
-                <div class="sita-page-icon"><?= iconoSita('chart', 18) ?></div>
-
-                <div>
-                    <h2 class="sita-page-title">Panel principal</h2>
-                    <p class="sita-page-subtitle">Sistema de Trazabilidad de Aprendices</p>
-                </div>
-            </div>
-
-            <div class="sita-topbar-right">
-                <div class="sita-topbar-date"><?= e(date('d/m/Y')) ?></div>
-
-                <div class="sita-topbar-user">
-                    <div class="sita-topbar-avatar">
-                        <?= e(mb_strtoupper(mb_substr($nombreUsuario, 0, 1))) ?>
-                    </div>
-
-                    <div class="sita-topbar-name"><?= e($nombreUsuario) ?></div>
-                </div>
-            </div>
-
-        </header>
-
-        <div class="sita-content">
+<div class="sita-content">
 
             <!-- BIENVENIDA -->
             <section class="sita-welcome">
